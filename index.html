@@ -219,13 +219,26 @@ textarea {
         </div>
         <div class="hint" id="hint" aria-live="polite"></div>
       </section>`;
-      document.getElementById("yes").onclick = () => go(1);
       const yn = document.getElementById("yn"), no = document.getElementById("no"), yes = document.getElementById("yes");
+      // Тап по «Нет» на телефоне не должен долетать до «Да»
+      let noTouchedAt = 0;
+      yes.onclick = () => { if (Date.now() - noTouchedAt > 600) go(1); };
+      no.addEventListener("touchstart", e => { e.preventDefault(); noTouchedAt = Date.now(); const t = e.touches[0]; dodge(t.clientX, t.clientY); }, { passive: false });
       // «Нет» убегает всегда: от приближения курсора, касания и клика
       const dodge = (px, py) => {
         s.dodges++;
+        if (!no.classList.contains("loose")) {
+          // Пустое место на прежней позиции, чтобы «Да» не съехало под палец
+          const ph = document.createElement("span");
+          ph.style.cssText = "display:inline-block;width:" + no.offsetWidth + "px;height:" + no.offsetHeight + "px";
+          yn.insertBefore(ph, no);
+          const r0 = no.getBoundingClientRect(), b0 = yn.getBoundingClientRect();
+          no.classList.add("loose");
+          no.style.left = (r0.left - b0.left) + "px";
+          no.style.top = (r0.top - b0.top) + "px";
+          no.offsetWidth;
+        }
         const box = yn.getBoundingClientRect(), yb = yes.getBoundingClientRect();
-        no.classList.add("loose");
         const w = no.offsetWidth, h = no.offsetHeight;
         let x = 0, y = 0;
         for (let i = 0; i < 20; i++) {
@@ -247,7 +260,7 @@ textarea {
         const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
         if (Math.hypot(dx, dy) < 40) dodge(e.clientX, e.clientY);
       });
-      no.addEventListener("pointerdown", e => { e.preventDefault(); dodge(e.clientX, e.clientY); });
+      no.addEventListener("pointerdown", e => { e.preventDefault(); if (e.pointerType !== "touch") dodge(e.clientX, e.clientY); else noTouchedAt = Date.now(); });
       no.addEventListener("click", e => { e.preventDefault(); dodge(e.clientX, e.clientY); });
       return;
     }
