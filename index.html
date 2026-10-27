@@ -90,9 +90,7 @@ button:focus-visible, textarea:focus-visible { outline: 3px solid var(--lamp); o
 .btn-yes { background: var(--lamp); color: var(--ink); box-shadow: 0 6px 0 var(--lamp-deep); }
 .btn-yes:hover { transform: translateY(-2px); }
 .btn-yes:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--lamp-deep); }
-.yesno { flex-wrap: wrap; }
-.btn-early { background: #fdebc8; color: var(--ink); border: 2px solid var(--lamp); }
-.btn-early:hover { transform: translateY(-2px); }
+.yesno { flex-wrap: wrap; min-height: 170px; touch-action: manipulation; }
 .btn-no { background: transparent; color: var(--muted); border: 2px dashed var(--line); transition: left .25s ease, top .25s ease, transform .15s; }
 .btn-no.loose { position: absolute; }
 .hint { text-align: center; min-height: 22px; font-family: var(--font-hand); font-size: 19px; color: var(--leaf); margin-top: 6px; }
@@ -174,9 +172,7 @@ textarea {
 (() => {
   const PLACES = [
     { id: "park", ico: "🍂", name: "Парк", desc: "Шуршать листьями и болтать обо всём" },
-    { id: "river", ico: "🌉", name: "Набережная", desc: "Огни на воде и ветер в лицо" },
     { id: "coffee", ico: "☕", name: "Кофе с собой", desc: "Тёплый стаканчик в руках и долгий маршрут" },
-    { id: "center", ico: "🏙️", name: "Старый центр", desc: "Узкие улочки, витрины, фонари" },
     { id: "cinema", ico: "🎬", name: "Прогулка + кино", desc: "Сначала погулять, потом фильм" },
     { id: "surprise", ico: "🎁", name: "Сюрприз", desc: "Доверяю тебе выбрать место" }
   ];
@@ -207,7 +203,7 @@ textarea {
     <path d="M50 32 v56" stroke="#2a2236" stroke-width="2" opacity=".35"/>
   </svg>`;
 
-  const NO_LINES = ["Ой, промахнулся(-ась) 🙂", "Кнопка стесняется", "Она сегодня не работает", "Попробуй ещё… или нет", "Кажется, это знак", "Ладно, ответ «да» засчитан почти"];
+  const NO_LINES = ["Ой, промахнулся(-ась) 🙂", "Кнопка стесняется", "Она сегодня не работает", "Попробуй ещё… или нет", "Кажется, это знак", "Есть только один правильный ответ 😉", "Не догонишь!", "Кнопка «Да» вон там 👈"];
 
   function render() {
     const st = s.step;
@@ -219,48 +215,40 @@ textarea {
         <p>Октябрь, листья, фонари и тёплый кофе. Не хватает только тебя.</p>
         <div class="yesno" id="yn">
           <button class="btn btn-yes" id="yes">Да, пойду!</button>
-          <button class="btn btn-early" id="early">Рановато</button>
-          <button class="btn btn-no" id="no">Нет</button>
+          <button class="btn btn-no" id="no" tabindex="-1">Нет</button>
         </div>
         <div class="hint" id="hint" aria-live="polite"></div>
       </section>`;
       document.getElementById("yes").onclick = () => go(1);
-      document.getElementById("early").onclick = () => go("early");
-      const no = document.getElementById("no");
-      const dodge = e => {
-        if (s.dodges >= 6) return;
-        e.preventDefault();
+      const yn = document.getElementById("yn"), no = document.getElementById("no"), yes = document.getElementById("yes");
+      // «Нет» убегает всегда: от приближения курсора, касания и клика
+      const dodge = (px, py) => {
         s.dodges++;
-        const box = document.getElementById("yn").getBoundingClientRect();
+        const box = yn.getBoundingClientRect(), yb = yes.getBoundingClientRect();
         no.classList.add("loose");
         const w = no.offsetWidth, h = no.offsetHeight;
-        no.style.left = Math.random() * Math.max(0, box.width - w) + "px";
-        no.style.top = Math.random() * Math.max(0, box.height - h) + "px";
+        let x = 0, y = 0;
+        for (let i = 0; i < 20; i++) {
+          x = Math.random() * Math.max(0, box.width - w);
+          y = Math.random() * Math.max(0, box.height - h);
+          const cx = box.left + x + w / 2, cy = box.top + y + h / 2;
+          const overYes = cx > yb.left - w / 2 - 8 && cx < yb.right + w / 2 + 8 && cy > yb.top - h / 2 - 8 && cy < yb.bottom + h / 2 + 8;
+          const far = px == null || Math.hypot(cx - px, cy - py) > 110;
+          if (!overYes && far) break;
+        }
+        no.style.left = x + "px";
+        no.style.top = y + "px";
         document.getElementById("hint").textContent = NO_LINES[(s.dodges - 1) % NO_LINES.length];
-        if (s.dodges >= 6) { no.textContent = "Ну ладно…"; }
       };
-      no.addEventListener("pointerenter", e => { if (e.pointerType === "mouse") dodge(e); });
-      no.addEventListener("click", e => { if (s.dodges < 6) { dodge(e); } else { go("no"); } });
-      return;
-    }
-    if (st === "no") {
-      view.innerHTML = `<section class="step sad">
-        <div class="eyebrow">Ничего страшного</div>
-        <h2>Тогда в другой раз 🍂</h2>
-        <p>Приглашение не сгорает. Если передумаешь, вернись и нажми «Да».</p>
-        <div class="nav" style="justify-content:center"><button class="btn btn-yes" id="back">Я передумал(а)</button></div>
-      </section>`;
-      document.getElementById("back").onclick = () => { s.dodges = 0; go(0); };
-      return;
-    }
-    if (st === "early") {
-      view.innerHTML = `<section class="step sad">
-        <div class="eyebrow">Понимаю</div>
-        <h2>Не торопимся 🌙</h2>
-        <p>Всё в порядке. Когда почувствуешь, что пора, просто вернись сюда и нажми «Да».</p>
-        <div class="nav" style="justify-content:center"><button class="btn btn-yes" id="back">Вернуться к вопросу</button></div>
-      </section>`;
-      document.getElementById("back").onclick = () => { s.dodges = 0; go(0); };
+      yn.addEventListener("pointermove", e => {
+        if (e.pointerType !== "mouse") return;
+        const r = no.getBoundingClientRect();
+        const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
+        const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
+        if (Math.hypot(dx, dy) < 40) dodge(e.clientX, e.clientY);
+      });
+      no.addEventListener("pointerdown", e => { e.preventDefault(); dodge(e.clientX, e.clientY); });
+      no.addEventListener("click", e => { e.preventDefault(); dodge(e.clientX, e.clientY); });
       return;
     }
     if (st === 1) {
